@@ -1,0 +1,15 @@
+{
+    "name": "coffeeshop/api",
+    "description": "Coffee Shop REST API",
+    "type": "project",
+    "license": "MIT",
+    "autoload": {
+        "psr-4": {
+            "Coffeeshop\\Api\\": "src/"
+        }
+    },
+    "minimum-stability": "stable",
+    "require": {
+        "firebase/php-jwt": "^7.2"
+    }
+}
