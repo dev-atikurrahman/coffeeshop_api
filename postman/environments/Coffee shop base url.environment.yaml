@@ -1,4 +1,4 @@
 name: Coffee shop base url
 values:
   - key: base_url
-    value: ''
+    value: 'http://192.168.115.37/coffeeshop_api/public'

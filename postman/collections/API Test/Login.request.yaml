@@ -3,5 +3,5 @@ url: "{{base_url}}/api/auth/login"
 method: POST
 body:
   type: json
-  content: '{ "email": "test@example.com", "password": "abc12345" }'
+  content: '{ "email": "test2@example.com", "password": "abc12345" }'
 order: 4393675259935997
