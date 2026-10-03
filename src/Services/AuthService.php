@@ -25,9 +25,11 @@ final class AuthService
         $validator
             ->required('name', $data['name'] ?? null)
             ->string('name', $data['name'] ?? null)
+            ->maxLength('name', $data['name'] ?? null, 100)
             ->required('email', $data['email'] ?? null)
             ->string('email', $data['email'] ?? null)
             ->email('email', $data['email'] ?? null)
+            ->maxLength('email', $data['email'] ?? null, 255)
             ->required('password', $data['password'] ?? null)
             ->string('password', $data['password'] ?? null)
             ->minLength('password', $data['password'] ?? null, 8);
@@ -80,8 +82,7 @@ final class AuthService
             ->string('email', $data['email'] ?? null)
             ->email('email', $data['email'] ?? null)
             ->required('password', $data['password'] ?? null)
-            ->string('password', $data['password'] ?? null)
-            ->minLength('password', $data['password'] ?? null, 8);
+            ->string('password', $data['password'] ?? null);
 
         if ($validator->fails()) {
             throw new ValidationException(

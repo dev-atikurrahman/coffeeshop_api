@@ -47,10 +47,17 @@ final class Validator
             is_string($value) &&
             mb_strlen($value) < $length
         ) {
-            $this->errors[$field][] =
-                "Minimum {$length} characters required.";
+            $this->errors[$field][] = "Minimum {$length} characters required.";
         }
 
+        return $this;
+    }
+
+    public function maxLength(string $field, mixed $value, int $length): self
+    {
+        if (is_string($value) && mb_strlen($value) > $length) {
+            $this->errors[$field][] = "Maximum {$length} characters allowed.";
+        }
         return $this;
     }
 
