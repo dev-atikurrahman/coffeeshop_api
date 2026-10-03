@@ -54,6 +54,14 @@ final class Validator
         return $this;
     }
 
+    public function string(string $field, mixed $value): self
+    {
+        if ($value !== null && !is_string($value)) {
+            $this->errors[$field][] = 'Must be a string.';
+        }
+
+        return $this;
+    }
 
     public function fails(): bool
     {

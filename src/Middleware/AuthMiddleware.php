@@ -15,34 +15,22 @@ final class AuthMiddleware
         private readonly JwtService $jwt
     ) {}
 
-    public function handle(
-        Request $request,
-        callable $next
-    ): mixed {
+    public function handle(Request $request, callable $next): mixed
+    {
         $token = $request->bearerToken();
 
         if (!$token) {
-            Response::error(
-                'Authentication token is required.',
-                401
-            );
+            Response::error('Authentication token is required.', 401);
         }
 
         try {
             $payload = $this->jwt->verify($token);
-
-            // Current authenticated user payload
-            $request->setAttribute(
-                'auth',
-                $payload
-            );
-
-            return $next($request);
         } catch (Throwable) {
-            Response::error(
-                'Invalid or expired token.',
-                401
-            );
+            Response::error('Invalid or expired token.', 401);
         }
+
+        $request->setAttribute('auth', $payload);
+
+        return $next($request);
     }
 }

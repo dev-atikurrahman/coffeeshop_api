@@ -4,74 +4,89 @@ declare(strict_types=1);
 
 namespace Coffeeshop\Api\Core;
 
-use RuntimeException;
 
 final class Router
 {
     private array $routes = [];
+    private array $globalMiddleware = [];
 
-    public function get(string $path, callable $handler): void
+    public function use(object $middleware): void
     {
-        $this->add('GET', $path, $handler);
+        $this->globalMiddleware[] = $middleware;
     }
 
-    public function post(string $path, callable $handler): void
+    public function get(string $path, callable $handler, array $middleware = []): void
     {
-        $this->add('POST', $path, $handler);
+        $this->add('GET', $path, $handler, $middleware);
     }
 
-    public function put(string $path, callable $handler): void
+    public function post(string $path, callable $handler, array $middleware = []): void
     {
-        $this->add('PUT', $path, $handler);
+        $this->add('POST', $path, $handler, $middleware);
     }
 
-    public function patch(string $path, callable $handler): void
+    public function put(string $path, callable $handler, array $middleware = []): void
     {
-        $this->add('PATCH', $path, $handler);
+        $this->add('PUT', $path, $handler, $middleware);
     }
 
-    public function delete(string $path, callable $handler): void
+    public function patch(string $path, callable $handler, array $middleware = []): void
     {
-        $this->add('DELETE', $path, $handler);
+        $this->add('PATCH', $path, $handler, $middleware);
+    }
+
+    public function delete(string $path, callable $handler, array $middleware = []): void
+    {
+        $this->add('DELETE', $path, $handler, $middleware);
     }
 
     public function dispatch(Request $request): mixed
     {
         $method = $request->method();
-        $uri = $request->uri();
+        $uri    = $request->uri();
 
-        foreach ($this->routes as $route) {
-            if ($route['method'] !== $method) {
-                continue;
-            }
+        $final = function (Request $request) use ($method, $uri) {
+            foreach ($this->routes as $route) {
+                if ($route['method'] !== $method) {
+                    continue;
+                }
 
-            $pattern = $this->convertToRegex($route['path']);
+                if (!preg_match($this->convertToRegex($route['path']), $uri, $matches)) {
+                    continue;
+                }
 
-            if (preg_match($pattern, $uri, $matches)) {
                 array_shift($matches);
+                $params = array_values($matches);
 
-                return ($route['handler'])(
-                    $request,
-                    ...array_values($matches)
-                );
+                $core = fn(Request $req) => ($route['handler'])($req, ...$params);
+
+                return $this->runPipeline($route['middleware'], $request, $core);
             }
-        }
 
-        Response::error(
-            'Route not found',
-            404
-        );
+            Response::error('Route not found', 404);
+        };
+
+        return $this->runPipeline($this->globalMiddleware, $request, $final);
     }
 
-    private function add(
-        string $method,
-        string $path,
-        callable $handler
-    ): void {
+    private function runPipeline(array $middleware, Request $request, callable $core): mixed
+    {
+        $pipeline = array_reduce(
+            array_reverse($middleware),
+            fn(callable $next, object $mw) => fn(Request $req) => $mw->handle($req, $next),
+            $core
+        );
+
+        return $pipeline($request);
+    }
+
+    private function add(string $method, string $path, callable $handler, array $middleware): void
+    {
         $this->routes[] = [
-            'method' => $method,
-            'path' => $path,
-            'handler' => $handler,
+            'method'     => $method,
+            'path'       => rtrim($path, '/') ?: '/',
+            'handler'    => $handler,
+            'middleware' => $middleware,
         ];
     }
 

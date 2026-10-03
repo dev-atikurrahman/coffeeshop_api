@@ -58,28 +58,38 @@ final class UserRepository
             : null;
     }
 
-    public function create(
-        string $name,
-        string $email,
-        string $passwordHash
-    ): User {
+    public function create(string $name, string $email, string $passwordHash): User
+    {
         $stmt = $this->db->prepare(
-            'INSERT INTO users
-                (name, email, password_hash, role)
-            VALUES
-                (:name, :email, :password_hash, :role)'
+            'INSERT INTO users (name, email, password_hash, role)
+            VALUES (:name, :email, :password_hash, :role)'
         );
 
-        $stmt->execute([
-            'name' => $name,
-            'email' => $email,
-            'password_hash' => $passwordHash,
-            'role' => 'user',
-        ]);
+        try {
+            $stmt->execute([
+                'name'          => $name,
+                'email'         => $email,
+                'password_hash' => $passwordHash,
+                'role'          => 'user',
+            ]);
+        } catch (\PDOException $e) {
+            // 23000 = unique constraint violation (safe even in race conditions)
+            if ($e->getCode() === '23000') {
+                throw new \Coffeeshop\Api\Exceptions\ApiException(
+                    'Email is already registered.',
+                    409
+                );
+            }
+            throw $e;
+        }
 
-        $id = (int) $this->db->lastInsertId();
+        $user = $this->findById((int) $this->db->lastInsertId());
 
-        return $this->findById($id);
+        if ($user === null) {
+            throw new \RuntimeException('Failed to load created user.');
+        }
+
+        return $user;
     }
 
     public function emailExists(

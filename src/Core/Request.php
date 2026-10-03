@@ -21,11 +21,15 @@ final class Request
 
     public function uri(): string
     {
-        $uri = parse_url(
-            $_SERVER['REQUEST_URI'] ?? '/',
-            PHP_URL_PATH
-        );
-        return $uri;
+        $path = parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH);
+        $path = is_string($path) ? $path : '/';
+
+        $scriptDir = str_replace('\\', '/', dirname($_SERVER['SCRIPT_NAME'] ?? ''));
+        if ($scriptDir !== '/' && $scriptDir !== '' && str_starts_with($path, $scriptDir)) {
+            $path = substr($path, strlen($scriptDir));
+        }
+
+        return rtrim($path, '/') ?: '/';
     }
 
     public function body(): array
@@ -43,32 +47,34 @@ final class Request
         return $_GET[$key] ?? $default;
     }
 
-    public function header(string $key): mixed
+    public function header(string $key): ?string
     {
-        $serverKey = "HTTP_" . strtoupper(
-            str_replace('-', '_', $key)
-        );
+        $serverKey = 'HTTP_' . strtoupper(str_replace('-', '_', $key));
 
-        return $_SERVER[$serverKey] ?? null;
+        if (isset($_SERVER[$serverKey])) {
+            return $_SERVER[$serverKey];
+        }
+
+        if ($key === 'Authorization' && isset($_SERVER['REDIRECT_HTTP_AUTHORIZATION'])) {
+            return $_SERVER['REDIRECT_HTTP_AUTHORIZATION'];
+        }
+
+        return null;
     }
 
     public function bearerToken(): ?string
     {
         $authorization = $this->header('Authorization');
 
-        if ($authorization) {
+        if (!$authorization) {
             return null;
         }
 
-        if (!preg_match(
-            '/Bearer\s(\S+)/',
-            $authorization,
-            $matches
-        )) {
+        if (!preg_match('/^Bearer\s+(\S+)$/i', $authorization, $matches)) {
             return null;
         }
 
-        return trim($matches[1]);
+        return $matches[1];
     }
 
     private function parseBody(): array
@@ -77,12 +83,12 @@ final class Request
             return [];
         }
 
-        $contentType = $_SERVER['Content-Type'] ?? '';
+        $contentType = $_SERVER['CONTENT_TYPE'] ?? $_SERVER['HTTP_CONTENT_TYPE'] ?? '';
 
         if (str_contains($contentType, 'application/json')) {
             $raw = file_get_contents('php://input');
 
-            if (!$raw) {
+            if ($raw === false || $raw === '') {
                 return [];
             }
 
@@ -94,17 +100,13 @@ final class Request
         return $_POST;
     }
 
-    public function setAttribute(
-        string $key,
-        mixed $value
-    ): void {
+    public function setAttribute(string $key, mixed $value): void
+    {
         $this->attributes[$key] = $value;
     }
 
-    public function attribute(
-        string $key,
-        mixed $default = null
-    ): mixed {
+    public function attribute(string $key, mixed $default = null): mixed
+    {
         return $this->attributes[$key] ?? $default;
     }
 }
